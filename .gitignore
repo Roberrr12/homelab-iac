@@ -1,0 +1,32 @@
+# --- Terraform ---
+.terraform/
+.terraform.tfstate.lock.info
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Variables con secretos (se sube example.tfvars sin valores)
+*.tfvars
+*.tfvars.json
+!example.tfvars
+
+# --- Secretos y claves ---
+.env
+*.pem
+*.key
+keys.txt
+*age-key*
+
+# --- Editores / SO ---
+.vscode/
+.idea/
+.DS_Store
+
+# NOTA: .terraform.lock.hcl SI se commitea (fija versiones de providers, no es secreto)
