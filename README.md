@@ -48,12 +48,40 @@ Aclarar aqui que se crea A MANO y por que:
 | `example.tfvars` | Valores de ejemplo (sin secretos) |
 | `modules/vm/` | Modulo reutilizable de VM |
 
-## Decisiones de diseno
+## Decisiones de diseño
 
-Ver [`docs/adr/`](docs/adr/). Las mas relevantes:
-- ADR-0005: por que el state vive fuera del cluster
-- ADR-0006: por que Terraform y no OpenTofu
-- ADR-0014: por que reconstruir en vez de importar
+# Decisiones técnicas
+
+## SOPS + age vs Vault
+
+Se ha decidido utilizar **SOPS + age** en lugar de Vault debido a los siguientes factores:
+
+- **Menor complejidad operativa** y menor consumo de recursos.
+- Mejor integración con un enfoque **GitOps**, permitiendo mantener los secretos cifrados junto a la configuración.
+- No requiere un proceso de **unsealing** tras el reinicio de una VM.
+- Menor infraestructura que mantener, al no requerir un servicio dedicado de gestión de secretos.
+
+**Coste asumido:** la custodia de los secretos dependerá de una única clave privada de **age**, que deberá almacenarse de forma segura y contar con un mecanismo de recuperación.
+
+---
+
+## k0s vs k3s
+
+Se ha descartado **k3s** en favor de **k0s**, ya que k3s incorpora herramientas y componentes adicionales que no son necesarios para el proyecto.
+
+El objetivo es desplegar y configurar estos componentes de forma independiente, manteniendo un mayor control sobre la infraestructura y evitando depender de funcionalidades preinstaladas que no se utilizarán.
+
+---
+
+## Local Path vs Longhorn
+
+Se ha decidido utilizar **Local Path** en lugar de **Longhorn** debido a que el proyecto no maneja datos críticos y el cluster contará únicamente con **2 workers**.
+
+Con esta configuración, la replicación proporcionada por Longhorn no aporta una alta disponibilidad completa para los workloads, ya que la pérdida de un nodo reduciría significativamente la capacidad disponible del cluster.
+
+Además, Local Path presenta una menor complejidad y consumo de recursos, lo que encaja mejor con las necesidades actuales del proyecto.
+
+**Coste asumido:** los workloads con estado, como **ArgoCD y Prometheus**, se configurarán explícitamente para ejecutarse siempre en el mismo nodo. En caso de pérdida de dicho nodo, estos workloads dejarán de estar disponibles hasta su recuperación.
 
 ## Evidencia
 
