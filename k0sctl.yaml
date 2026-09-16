@@ -1,0 +1,32 @@
+apiVersion: k0sctl.k0sproject.io/v1beta1
+kind: Cluster
+metadata:
+  name: k0s-cluster
+spec:
+  hosts:
+  - role: controller
+    ssh:
+      address: ${CONTROLLER_IP}
+      user: ${SSH_USER}
+      port: ${SSH_PORT}
+      keyPath: ${SSH_KEY_PATH}
+  - role: worker
+    ssh:
+      address: ${WORKER_IP1}
+      user: ${SSH_USER} 
+      port: ${SSH_PORT}
+      keyPath: ${SSH_KEY_PATH}
+  - role: worker
+    ssh:
+      address: ${WORKER_IP2}
+      user: ${SSH_USER}
+      port: ${SSH_PORT}
+      keyPath: ${SSH_KEY_PATH}
+  k0s:
+    version: v1.36.4+k0s.0
+    config:
+      spec:
+        telemetry:
+          enabled: false
+        storage:
+          type: etcd
