@@ -1,0 +1,5 @@
+bucket = "nombre_del_bucket"
+key    = "keydelbucket"
+endpoints = {s3 = "http://IP:9000"}
+access_key     = "CAMBIAR"
+secret_key     = "CAMBIAR"

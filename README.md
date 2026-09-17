@@ -1,58 +1,121 @@
 # homelab-iac
 
-> Infraestructura del homelab como codigo: las VMs del cluster k0s,
+> Infraestructura del homelab como código: las VMs del clúster k0s,
 > creadas y gestionadas con Terraform sobre Proxmox VE.
+
+---
 
 ## Estado
 
-En construccion. Fase 1.
+**Fase 1 cerrada y verificada** (17/09/2026)
+VMs del clúster y state remoto con locking en funcionamiento.
+
+**Fase 2 pendiente** — el `k0sctl.yaml` no se ha aplicado todavía.
+
+## Alcance
+
+Este repositorio cubre el despliegue con IaC de las VMs para k0s, además de la configuración de MinIO como backend externo.
 
 ## Problema
 
-<!-- TODO: que problema resuelve este repo. Concreto, no generico. -->
+Resuelve el problema de crear VMs a mano. De esta forma tenemos una infraestructura replicable desde 0 sin pasos manuales no documentados.
+
+El state de Terraform no puede vivir dentro del clúster ni en local, ya que podría corromperse por el state locking o borrarse; por ello se utiliza MinIO como almacenamiento externo.
+
+Se automatiza el despliegue de k0s: Terraform crea y k0sctl configura.
 
 ## Arquitectura
 
-Ver [`docs/arquitectura.md`](docs/arquitectura.md).
+```mermaid
+flowchart LR
+
+    subgraph Provisioning["Provisioning"]
+        E["Terraform"]
+        F["k0sctl"]
+    end
+
+    subgraph Infra["Infraestructura — Host Proxmox VE (32 GB)"]
+        subgraph Cluster["Clúster k0s"]
+            direction TB
+            B["ctrl-01<br/>controller · 4 GB<br/>tainted (sin cargas)"]
+            C["wrk-01<br/>worker · 8 GB<br/>nodo de estado"]
+            D["wrk-02<br/>worker · 4-6 GB<br/>stateless"]
+            subgraph Workloads["Workloads"]
+                K["Traefik (ingress)<br/>NodePort"]
+                L["local-path-provisioner"]
+                M["ArgoCD"]
+                N["kube-prometheus-stack"]
+                O["demo-api (FastAPI)"]
+            end
+        end
+        P["MinIO<br/>2 GB · VM aparte<br/>FUERA del clúster"]
+    end
+
+    subgraph CICD["CI/CD"]
+        G["GitHub Actions"]
+        H["GHCR"]
+        I["homelab-gitops<br/>(manifiestos)"]
+    end
+
+    U["Usuario"]
+
+    E -- "crea las VMs" --> Cluster
+    F -- "instala k0s (SSH)" --> Cluster
+    E -- "guarda el state" --> P
+
+    G -- "build + push imagen" --> H
+    G -- "commit nuevo tag" --> I
+    I -- "pull (GitOps)" --> M
+    M --> O
+    M --> K
+
+    U -- "NodePort" --> K
+```
 
 ## Stack
 
-- Terraform
-- Provider `bpg/proxmox`
-- Proxmox VE
-- MinIO como backend remoto de state (S3 compatible)
+| Componente | Uso |
+|---|---|
+| **Terraform** | Provisioning de las VMs |
+| **Provider `bpg/proxmox`** | Integración con Proxmox VE |
+| **k0s** | Distribución Kubernetes |
+| **MinIO** | Backend remoto de state (S3 compatible) |
 
 ## Requisitos previos
 
-<!-- TODO: lista explicita. Versiones, accesos, herramientas.
+- Terraform
+- Proxmox
 
-Aclarar aqui que se crea A MANO y por que:
-- El host Proxmox VE.
-- El API token de Proxmox con privilegios minimos.
-- MinIO (huevo y gallina: el state necesita un backend que ya exista).
--->
+## Cómo reproducirlo
 
-## Como reproducirlo
-
-<!-- TODO: del clon al resultado, en pocos comandos. -->
+1. **En Proxmox**: crear el token API, tener una plantilla configurada y una imagen para el LXC.
+2. **Desplegar MinIO**: con Terraform ya configurado para usar Proxmox, desplegar el LXC de MinIO en `bootstrap/minio`.
+3. **Configurar MinIO**: entrar al LXC y ejecutar `install-minio.sh`.
+4. **Preparar el backend**: desde tu PC, con `mc`, crear el bucket + usuario `terraform` + configurar policy.
+5. **Aplicar**: `terraform init -backend-config=backend.tfvars` desde la raíz.
 
 ## Ficheros
 
-| Fichero | Proposito |
+| Fichero | Propósito |
 |---|---|
 | `versions.tf` | Versiones de Terraform y del provider |
-| `providers.tf` | Configuracion del provider y del backend |
+| `providers.tf` | Configuración del provider |
 | `variables.tf` | Variables de entrada |
-| `main.tf` | Recursos: las VMs del cluster |
-| `outputs.tf` | IPs y datos de las VMs (entrada para la fase 2) |
+| `main.tf` | Recursos: las VMs del clúster |
 | `example.tfvars` | Valores de ejemplo (sin secretos) |
-| `modules/vm/` | Modulo reutilizable de VM |
+En minio
+| `versions.tf` | Versiones de Terraform y del provider |
+| `providers.tf` | Configuración del provider |
+| `variables.tf` | Variables de entrada |
+| `main.tf` | El LXC |
+| `example.tfvars` | Valores de ejemplo (sin secretos) |
+| `tfstate-policy` | Policy para el usuario de minio |
+| `install-minio.sh` | Script para instalar minio |
+
 
 ## Decisiones de diseño
 
-# Decisiones técnicas
-
-## SOPS + age vs Vault
+### SOPS + age vs Vault
 
 Se ha decidido utilizar **SOPS + age** en lugar de Vault debido a los siguientes factores:
 
@@ -61,11 +124,11 @@ Se ha decidido utilizar **SOPS + age** en lugar de Vault debido a los siguientes
 - No requiere un proceso de **unsealing** tras el reinicio de una VM.
 - Menor infraestructura que mantener, al no requerir un servicio dedicado de gestión de secretos.
 
-**Coste asumido:** la custodia de los secretos dependerá de una única clave privada de **age**, que deberá almacenarse de forma segura y contar con un mecanismo de recuperación.
+> **Coste asumido:** la custodia de los secretos dependerá de una única clave privada de **age**, que deberá almacenarse de forma segura y contar con un mecanismo de recuperación.
 
 ---
 
-## k0s vs k3s
+### k0s vs k3s
 
 Se ha descartado **k3s** en favor de **k0s**, ya que k3s incorpora herramientas y componentes adicionales que no son necesarios para el proyecto.
 
@@ -73,24 +136,40 @@ El objetivo es desplegar y configurar estos componentes de forma independiente, 
 
 ---
 
-## Local Path vs Longhorn
+### Local Path vs Longhorn
 
-Se ha decidido utilizar **Local Path** en lugar de **Longhorn** debido a que el proyecto no maneja datos críticos y el cluster contará únicamente con **2 workers**.
+Se ha decidido utilizar **Local Path** en lugar de **Longhorn** debido a que el proyecto no maneja datos críticos y el clúster contará únicamente con **2 workers**.
 
-Con esta configuración, la replicación proporcionada por Longhorn no aporta una alta disponibilidad completa para los workloads, ya que la pérdida de un nodo reduciría significativamente la capacidad disponible del cluster.
+Con esta configuración, la replicación proporcionada por Longhorn no aporta una alta disponibilidad completa para los workloads, ya que la pérdida de un nodo reduciría significativamente la capacidad disponible del clúster.
 
 Además, Local Path presenta una menor complejidad y consumo de recursos, lo que encaja mejor con las necesidades actuales del proyecto.
 
-**Coste asumido:** los workloads con estado, como **ArgoCD y Prometheus**, se configurarán explícitamente para ejecutarse siempre en el mismo nodo. En caso de pérdida de dicho nodo, estos workloads dejarán de estar disponibles hasta su recuperación.
+> **Coste asumido:** los workloads con estado, como **ArgoCD y Prometheus**, se configurarán explícitamente para ejecutarse siempre en el mismo nodo. En caso de pérdida de dicho nodo, estos workloads dejarán de estar disponibles hasta su recuperación.
 
 ## Evidencia
 
-<!-- TODO: salida real de `terraform apply` y de `terraform plan` vacio. -->
+```
+$ terraform apply
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+
+$ terraform plan
+proxmox_virtual_environment_vm.vm["wrk-02"]: Refreshing state... [id=x]
+proxmox_virtual_environment_vm.vm["ctrl-01"]: Refreshing state... [id=x]
+proxmox_virtual_environment_vm.vm["wrk-01"]: Refreshing state... [id=x]
+
+No changes. Your infrastructure matches the configuration.
+```
 
 ## Limitaciones conocidas
 
-<!-- TODO: seccion honesta. -->
+1. Binario `DEVELOPMENT.GOGET` → sin release ni SHA256 verificable: la reproducibilidad del runtime no está garantizada.
+2. State sin cifrar en reposo, y viaja por HTTP en la LAN.
+3. Bucket y usuario se crean a mano con `mc`: si se pierden, el state queda inaccesible. No hay backup automatizado todavía.
+4. Se entra como root al contenedor (en LXC no hay user_account real como en VM).
 
-## Que haria distinto / siguiente paso
+## Qué haría distinto / siguiente paso
 
-<!-- TODO -->
+- Extraer el patrón de VM a un módulo reutilizable (hoy está inline).
+- Versionar el binario de MinIO desde una release publicada.
+- Automatizar el `mc mirror` del state.
+- Meter el token en un fichero aparte del `.tfvars`.

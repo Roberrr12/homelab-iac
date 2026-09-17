@@ -49,48 +49,15 @@ resource "proxmox_virtual_environment_vm" "vm" {
   }
 }
 
-/* resource "proxmox_virtual_environment_container" "container" {
-  for_each = var.containers
-
-  node_name = each.value.node
-
-  initialization {
-    hostname = each.key
-
-    ip_config {
-      ipv4 {
-        address = each.value.ip_address
-        gateway = each.value.gateway
-      }
-    }
-
-    user_account {
-        username = var.username
-        keys    = [var.ssh_public_key]
-    }
+terraform {
+  backend "s3" {
+    use_lockfile = true
+    region         = "main"
+    skip_credentials_validation = true # Para evitar la validación de credenciales
+    skip_metadata_api_check     = true # Para evitar la verificación de la API de metadatos
+    skip_region_validation      = true # Para evitar la validación de la región
+    skip_requesting_account_id = true # Para evitar la solicitud del ID de cuenta (si no, usa aws)
+    use_path_style            = true # Para usar el estilo de ruta en lugar del estilo de subdominio
   }
-
-  cpu {
-    cores = each.value.cpu_cores
-  }
-
-  memory {
-    dedicated = each.value.memory
-  }
-
-  disk {
-    datastore_id = each.value.datastore
-    size         = each.value.disk_size
-  }
-
-  network_interface {
-    name   = "eth0"
-    bridge = each.value.network_bridge
-  }
-
-  operating_system {
-    template_file_id = var.template_file_id
-  }
-} */
-
+}
 

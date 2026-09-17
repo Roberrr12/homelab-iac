@@ -19,10 +19,6 @@ variable "ssh_public_key" {
   type        = string
 }
 
-# variable "template_file_id" {
-#  type = string
-#} 
-
 variable "vms" {
 
   type = map(object({
@@ -41,16 +37,4 @@ variable "vms" {
   }))
 }
 
-#variable "containers" {
-#  type = map(object({
-#    node           = string
-#    cpu_cores      = number
-#    memory         = number
-#    disk_size      = number
-#    datastore      = string
-#    network_bridge = string
-#
-#    ip_address = string
-#    gateway    = string
-#  }))
-#}
+

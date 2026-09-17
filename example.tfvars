@@ -33,17 +33,11 @@ vms = {
     gateway    = "CAMBIAR"
   }
 }
-#containers = {
-#  "minio" = {
-#    node           = "CAMBIAR"
-#    cpu_cores      = 2
-#    memory         = 2048
-#    disk_size      = 22
-#    datastore      = "CAMBIAR"
-#    network_bridge = "CAMBIAR"
-#
-#
-#    ip_address = "192.168.X.Y/24".
-#    gateway    = "CAMBIAR"
-#  }
-#}
+s3 = {
+  bucket = "mybucket"
+  key    = "path/to/my/key"
+  use_lockfile = true
+  endpoint       = "http://URL:9000"
+  access_key     = "CAMBIAR"
+  secret_key     = "CAMBIAR"
+}
