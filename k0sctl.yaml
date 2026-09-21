@@ -16,12 +16,17 @@ spec:
       user: ${SSH_USER} 
       port: ${SSH_PORT}
       keyPath: ${SSH_KEY_PATH}
+      installFlags:
+        - "--labels=role=stateful"
+        - "--taints=role=stateful:NoSchedule"
   - role: worker
     ssh:
       address: ${WORKER_IP2}
       user: ${SSH_USER}
       port: ${SSH_PORT}
       keyPath: ${SSH_KEY_PATH}
+      installFlags:
+        - --labels="role=stateless"
   k0s:
     version: v1.36.4+k0s.0
     config:

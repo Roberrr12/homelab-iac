@@ -101,6 +101,10 @@ flowchart LR
 
 ```set +a          # desactiva allexport, vuelve al comportamiento normal```
 
+**Traefik**
+1. **Crear** El configMap y el storageClass en /bootstrap/k0s 
+2. **Desplegar con helm**: La versión traefik-41.6.0 usando los `values.yaml`
+3. **Exponer el dashboard**: Con el commando `kubectl port-forward -n traefik pod/NOMBRE_DEL_POD 9000:8080`
 ## Ficheros
 
 | Fichero | Propósito |
