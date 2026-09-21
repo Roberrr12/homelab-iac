@@ -10,7 +10,7 @@
 **Fase 1 cerrada y verificada** (17/09/2026)
 VMs del clúster y state remoto con locking en funcionamiento.
 
-**Fase 2 pendiente** — el `k0sctl.yaml` no se ha aplicado todavía.
+**Fase 2 cerrada y verificada** K0s funcionando a la perfección con traefik exponiendo y local-path-provisioner  
 
 ## Alcance
 
