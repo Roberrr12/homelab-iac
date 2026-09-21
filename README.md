@@ -100,11 +100,49 @@ flowchart LR
 ```source .env     # carga las variables del archivo```
 
 ```set +a          # desactiva allexport, vuelve al comportamiento normal```
+# Bootstrap del clúster (post k0sctl)
 
-**Traefik**
-1. **Crear** El configMap y el storageClass en /bootstrap/k0s 
-2. **Desplegar con helm**: La versión traefik-41.6.0 usando los `values.yaml`
-3. **Exponer el dashboard**: Con el commando `kubectl port-forward -n traefik pod/NOMBRE_DEL_POD 9000:8080`
+> Prerrequisito: `k0sctl apply` ejecutado.
+
+## 1. local-path-provisioner
+
+Aplicamos el manifiesto en `bootstrap/k0s/local-path/
+local-path-storage.yaml` (upstream v0.0.37, versión fijada) → crea ns,
+ServiceAccount, RBAC, Deployment, su ConfigMap y su StorageClass.
+
+    kubectl apply -f bootstrap/k0s/local-path/local-path-storage.yaml
+
+Después aplicamos **nuestro** ConfigMap, que restringe el provisioning a
+wrk-01 (el de upstream permite cualquier nodo):
+
+    kubectl apply -f bootstrap/k0s/local-path/configmap.yaml
+
+Y borramos la StorageClass que trae upstream, que no usamos:
+
+    kubectl delete storageclass local-path
+    # la nuestra es 'local-path-provisioner': no son la misma, no hay colisión
+
+### Verificación
+    kubectl get pods -n local-path-storage        # 1/1 Running (en wrk-02)
+    kubectl get storageclass                      # solo local-path-provisioner, no default
+    kubectl get cm -n local-path-storage local-path-config -o yaml   # debe apuntar a wrk-01
+    # y un PVC de prueba que llegue a Bound
+
+## 2. Traefik
+
+(ns + repo, versión fijada, values.yaml del repo)
+
+    helm install traefik traefik/traefik --version 41.6.0 \
+      -n traefik --create-namespace -f bootstrap/k0s/traefik/values.yaml
+
+### Verificación
+    kubectl get svc -n traefik     # NodePort, 30000/30001, sin <pending>
+    kubectl get pods -n traefik -o wide   # en wrk-02
+    curl -I http://<ip-worker>:30000      # 404 = Traefik responde
+
+### Acceso al dashboard (no expuesto)
+    kubectl port-forward -n traefik deploy/traefik 9000:8080
+    # http://localhost:9000/dashboard/
 ## Ficheros
 
 | Fichero | Propósito |
