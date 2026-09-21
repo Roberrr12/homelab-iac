@@ -93,6 +93,13 @@ flowchart LR
 3. **Configurar MinIO**: entrar al LXC y ejecutar `install-minio.sh`.
 4. **Preparar el backend**: desde tu PC, con `mc`, crear el bucket + usuario `terraform` + configurar policy.
 5. **Aplicar**: `terraform init -backend-config=backend.tfvars` desde la raíz.
+6. **k0s**: En una bash usar los comandos: 
+
+```set -a          # activa allexport```
+
+```source .env     # carga las variables del archivo```
+
+```set +a          # desactiva allexport, vuelve al comportamiento normal```
 
 ## Ficheros
 
